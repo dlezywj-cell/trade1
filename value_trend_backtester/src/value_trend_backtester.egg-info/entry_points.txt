@@ -1,0 +1,2 @@
+[console_scripts]
+value-trend-backtest = value_trend_backtester.cli:main

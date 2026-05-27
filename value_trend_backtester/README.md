@@ -1,0 +1,136 @@
+# Value Trend Backtester
+
+这是一个适合价值投资者使用的趋势叠加回测工具。
+
+核心假设是：股票的基本面和估值由你先筛选，代码不替你判断公司好坏；代码只负责在“好公司、低估或合理估值”的前提下，用价格趋势识别加仓机会和风险减仓点。
+
+## 网页版
+
+如果你只想发布一个网页版本，直接使用：
+
+```text
+docs/index.html
+```
+
+发布到 GitHub Pages：
+
+1. 把整个 `value_trend_backtester` 文件夹上传到 GitHub 仓库。
+2. 进入仓库的 `Settings`。
+3. 找到 `Pages`。
+4. `Source` 选择 `Deploy from a branch`。
+5. `Branch` 选择 `main`，文件夹选择 `/docs`。
+6. 保存后等待一两分钟，GitHub 会生成一个可以直接打开的网页链接。
+
+网页版不需要安装 Python。打开网页后，添加股票，选择日期，点击“运行选中股票”即可。
+
+## 策略逻辑
+
+- 如果股价重新站上短期趋势，先建 20% 底仓。
+- 如果股价沿 5 日线向上，并且 5 日线在 10 日线上方，分批加仓。
+- 如果跌破 10 日线，先观察几天。
+- 如果跌破 10 日线后没有快速修复，先减仓。
+- 如果跌破 20 日线、连续多日低于 10 日线、从持仓后高点回撤过大，或组合回撤触发风控，清仓。
+- 清仓后并不永久放弃，后续股价重新回到短期趋势上方，会再次建仓。
+
+默认参数偏稳健，适合“先控制亏损，再让强趋势把仓位带满”的用法。
+
+## 安装
+
+```bash
+cd value_trend_backtester
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+如果你主要回测 A 股，并希望输入中文股票名，例如“贵州茅台”，建议安装 AKShare：
+
+```bash
+pip install -e ".[china]"
+```
+
+## 使用示例
+
+输入明确代码：
+
+```bash
+value-trend-backtest 600519 --start 2023-01-01 --end today --market cn --lot-size 100
+```
+
+输入美股代码：
+
+```bash
+value-trend-backtest AAPL --start 2022-01-01
+```
+
+输入港股代码：
+
+```bash
+value-trend-backtest 0700.HK --start 2022-01-01 --market hk
+```
+
+如果安装了 AKShare，可以尝试输入 A 股中文名称：
+
+```bash
+value-trend-backtest 贵州茅台 --start 2023-01-01 --market cn --lot-size 100
+```
+
+如果在线行情源被限流，或你有自己的复权行情文件，可以用本地 CSV：
+
+```bash
+value-trend-backtest 600519 \
+  --start 2023-01-01 \
+  --market cn \
+  --prices-csv your_prices.csv \
+  --lot-size 100
+```
+
+CSV 需要包含这些列：
+
+```text
+Date,Open,High,Low,Close,Volume
+```
+
+运行后会在 `outputs/` 里生成：
+
+- `*_daily.csv`：每日净值、仓位、均线、信号原因
+- `*_trades.csv`：每次买入、加仓、减仓、清仓的交易明细
+- `*_summary.json`：收益、回撤、波动、平均仓位等摘要
+- `*_chart.png`：价格、均线、净值和仓位图
+
+## 常用参数
+
+```bash
+value-trend-backtest 600519 \
+  --start 2023-01-01 \
+  --market cn \
+  --cash 1000000 \
+  --base-exposure 0.2 \
+  --add-step 0.2 \
+  --max-exposure 1.0 \
+  --observe-days 3 \
+  --hard-exit-days 6 \
+  --max-price-drawdown 0.12 \
+  --max-equity-drawdown 0.10 \
+  --hard-equity-drawdown 0.15 \
+  --lot-size 100
+```
+
+参数含义：
+
+- `base-exposure`：首次建仓比例，默认 20%。
+- `add-step`：每次加仓/减仓幅度，默认 20%。
+- `observe-days`：跌破 10 日线后允许观察的天数。
+- `hard-exit-days`：连续低于 10 日线达到该天数后清仓。
+- `max-price-drawdown`：持仓后从高点回撤超过该比例后清仓。
+- `max-equity-drawdown`：组合净值回撤超过该比例后降到防守仓位。
+- `hard-equity-drawdown`：组合净值回撤超过该比例后清仓。
+- `lot-size`：交易单位。A 股可设为 100；美股可用默认 1。
+
+## 数据说明
+
+默认数据来自 Yahoo Finance。结束日期为今天时，程序会尝试用分钟级行情刷新当天价格；是否实时取决于数据源对对应市场的支持和延迟情况。A 股名称匹配依赖可选的 AKShare。
+
+## 免责声明
+
+本项目只用于研究和回测，不构成投资建议。回测结果不代表未来收益，真实交易还会受到成交量、冲击成本、税费、停牌、涨跌停、数据延迟等影响。

@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/value_trend_backtester/__init__.py
+src/value_trend_backtester/cli.py
+src/value_trend_backtester/data.py
+src/value_trend_backtester/metrics.py
+src/value_trend_backtester/plot.py
+src/value_trend_backtester/strategy.py
+src/value_trend_backtester.egg-info/PKG-INFO
+src/value_trend_backtester.egg-info/SOURCES.txt
+src/value_trend_backtester.egg-info/dependency_links.txt
+src/value_trend_backtester.egg-info/entry_points.txt
+src/value_trend_backtester.egg-info/requires.txt
+src/value_trend_backtester.egg-info/top_level.txt
+tests/test_strategy.py
