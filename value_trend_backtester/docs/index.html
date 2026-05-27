@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>价值趋势回测</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --red: #dc2626;
+      --green: #15803d;
+      --amber: #b45309;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 14px;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 2px 16px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-pill {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 7px 10px;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+
+    .card-body {
+      padding: 14px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .form-row.one {
+      grid-template-columns: 1fr;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 9px 10px;
+      outline: none;
+      background: #fff;
+      min-height: 38px;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 9px 12px;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+      font-weight: 700;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn.danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .btn.ghost {
+      background: #f9fafb;
+      color: #374151;
+      border: 1px solid var(--line);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .stock-list {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .stock-row {
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .stock-row:last-child {
+      border-bottom: 0;
+    }
+
+    .stock-name {
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .stock-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+      overflow-wrap: anywhere;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mini-btn {
+      min-height: 30px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      cursor: pointer;
+      color: #374151;
+    }
+
+    .search-results {
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      max-height: 210px;
+      overflow: auto;
+      display: none;
+    }
+
+    .search-item {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .search-item:hover {
+      background: var(--blue-soft);
+    }
+
+    .quick-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .quick-row .btn {
+      min-height: 32px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .positive { color: var(--red); }
+    .negative { color: var(--green); }
+    .warning { color: var(--amber); }
+
+    .chart {
+      height: 430px;
+      width: 100%;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f9fafb;
+      color: #4b5563;
+      font-size: 12px;
+      z-index: 2;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:hover, tbody tr.selected {
+      background: var(--blue-soft);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      min-width: 52px;
+    }
+
+    .badge.buy, .badge.add { background: var(--red); }
+    .badge.trim, .badge.sell { background: var(--green); }
+    .badge.hold { background: #6b7280; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #374151;
+      border-radius: 999px;
+      padding: 7px 11px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .tab.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .progress {
+      display: none;
+      margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      font-weight: 700;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 18px;
+      border: 1px dashed #d1d5db;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      padding: 2px 4px 16px;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .chart {
+        height: 360px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .app {
+        padding: 10px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row .btn {
+        flex: 1 1 140px;
+      }
+
+      .stats {
+        gap: 8px;
+      }
+
+      .stat {
+        padding: 9px;
+      }
+
+      .stat-value {
+        font-size: 16px;
+      }
+
+      .chart {
+        height: 330px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1 class="title">价值趋势回测</h1>
+        <div class="subtitle">低位分批建仓，趋势走顺加仓，跌破关键均线后减仓或清仓。</div>
+      </div>
+      <div class="status-pill" id="statusText">本地运行，配置自动保存在浏览器</div>
+    </header>
+
+    <main class="layout">
+      <aside>
+        <section class="card">
+          <div class="card-header">
+            <span>股票池</span>
+            <span id="stockCount">0</span>
+          </div>
+          <div class="card-body">
+            <div class="form-row one">
+              <div>
+                <label for="stockSearch">股票名称或代码</label>
+                <input id="stockSearch" placeholder="例如 贵州茅台 / 600519 / 腾讯 / AAPL">
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="btn primary" id="searchBtn">搜索</button>
+              <button class="btn ghost" id="manualBtn">手动添加</button>
+            </div>
+            <div class="search-results" id="searchResults"></div>
+
+            <div class="form-row" style="margin-top: 12px;">
+              <div>
+                <label for="stockName">名称</label>
+                <input id="stockName" placeholder="股票名称">
+              </div>
+              <div>
+                <label for="stockCode">代码</label>
+                <input id="stockCode" placeholder="600519.SH">
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="btn primary" id="saveStockBtn">保存股票</button>
+              <button class="btn ghost" id="seedBtn">加入示例</button>
+              <button class="btn danger" id="clearBtn">清空</button>
+            </div>
+          </div>
+          <div class="stock-list" id="stockList"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">回测参数</div>
+          <div class="card-body">
+            <div class="quick-row">
+              <button class="btn ghost quick" data-range="1y">近一年</button>
+              <button class="btn ghost quick" data-range="6m">近半年</button>
+              <button class="btn ghost quick" data-range="3m">近三个月</button>
+              <button class="btn ghost quick" data-range="ytd">今年</button>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="startDate">开始日期</label>
+                <input type="date" id="startDate">
+              </div>
+              <div>
+                <label for="endDate">结束日期</label>
+                <input type="date" id="endDate">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="baseExposure">初始仓位</label>
+                <input type="number" id="baseExposure" value="0.2" min="0" max="1" step="0.05">
+              </div>
+              <div>
+                <label for="addStep">每次加减仓</label>
+                <input type="number" id="addStep" value="0.2" min="0" max="1" step="0.05">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="maxExposure">最高仓位</label>
+                <input type="number" id="maxExposure" value="1" min="0" max="2" step="0.05">
+              </div>
+              <div>
+                <label for="defensiveExposure">防守仓位</label>
+                <input type="number" id="defensiveExposure" value="0.2" min="0" max="1" step="0.05">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="observeDays">跌破10日线观察天数</label>
+                <input type="number" id="observeDays" value="3" min="1" step="1">
+              </div>
+              <div>
+                <label for="hardExitDays">连续低于10日线清仓</label>
+                <input type="number" id="hardExitDays" value="6" min="1" step="1">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label for="maxPriceDrawdown">股价高点回撤清仓</label>
+                <input type="number" id="maxPriceDrawdown" value="0.12" min="0" step="0.01">
+              </div>
+              <div>
+                <label for="maxEquityDrawdown">净值回撤降仓</label>
+                <input type="number" id="maxEquityDrawdown" value="0.10" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="btn primary" id="runBtn">运行选中股票</button>
+              <button class="btn ghost" id="exportBtn">导出配置</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="footer-note">
+          行情来自东方财富公开接口。网页端不需要服务器，但免费接口可能偶发失败或延迟。回测只做纪律验证，不代表投资建议。
+        </div>
+      </aside>
+
+      <section>
+        <div class="progress" id="progressBox">准备中</div>
+
+        <section class="card">
+          <div class="card-header">
+            <span>结果概览</span>
+            <span id="selectedName">未选择</span>
+          </div>
+          <div class="card-body">
+            <div class="stats">
+              <div class="stat"><div class="stat-value" id="statReturn">--</div><div class="stat-label">策略收益</div></div>
+              <div class="stat"><div class="stat-value" id="statStockReturn">--</div><div class="stat-label">股价涨跌</div></div>
+              <div class="stat"><div class="stat-value" id="statDrawdown">--</div><div class="stat-label">最大回撤</div></div>
+              <div class="stat"><div class="stat-value" id="statExposure">--</div><div class="stat-label">平均仓位</div></div>
+            </div>
+            <div id="mainChart" class="chart"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">股票排名</div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>股票</th>
+                    <th>策略收益</th>
+                    <th>股价涨跌</th>
+                    <th>最大回撤</th>
+                    <th>当前仓位</th>
+                    <th>最新动作</th>
+                    <th>最新原因</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryBody">
+                  <tr><td colspan="7" class="empty">还没有回测结果</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">交易日志</div>
+          <div class="card-body">
+            <div class="tabs">
+              <button class="tab active" data-log-filter="all">全部</button>
+              <button class="tab" data-log-filter="trade">只看交易</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>动作</th>
+                    <th>仓位变化</th>
+                    <th>收盘价</th>
+                    <th>MA5/MA10/MA20</th>
+                    <th>原因</th>
+                  </tr>
+                </thead>
+                <tbody id="logBody">
+                  <tr><td colspan="6" class="empty">请选择一只股票查看</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "valueTrendStocksV1";
+    const SETTINGS_KEY = "valueTrendSettingsV1";
+    const sampleStocks = [
+      { name: "贵州茅台", code: "600519.SH", selected: true },
+      { name: "腾讯控股", code: "00700.HK", selected: true },
+      { name: "Apple", code: "AAPL.US", selected: true }
+    ];
+
+    let stocks = loadStocks();
+    let results = [];
+    let selectedResultIndex = -1;
+    let chart = null;
+    let activeLogFilter = "all";
+
+    const $ = (id) => document.getElementById(id);
+
+    init();
+
+    function init() {
+      initDates();
+      loadSettings();
+      bindEvents();
+      renderStocks();
+      renderEmptyChart();
+    }
+
+    function bindEvents() {
+      $("searchBtn").addEventListener("click", searchStock);
+      $("manualBtn").addEventListener("click", () => {
+        $("stockName").value = $("stockSearch").value.trim();
+        $("stockCode").focus();
+      });
+      $("saveStockBtn").addEventListener("click", saveStock);
+      $("seedBtn").addEventListener("click", addSamples);
+      $("clearBtn").addEventListener("click", clearStocks);
+      $("runBtn").addEventListener("click", runSelectedBacktests);
+      $("exportBtn").addEventListener("click", exportConfig);
+      document.querySelectorAll(".quick").forEach(btn => {
+        btn.addEventListener("click", () => setQuickDate(btn.dataset.range));
+      });
+      document.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+          btn.classList.add("active");
+          activeLogFilter = btn.dataset.logFilter;
+          renderLogs();
+        });
+      });
+      [
+        "baseExposure", "addStep", "maxExposure", "defensiveExposure",
+        "observeDays", "hardExitDays", "maxPriceDrawdown", "maxEquityDrawdown"
+      ].forEach(id => $(id).addEventListener("change", saveSettings));
+      window.addEventListener("resize", () => chart && chart.resize());
+    }
+
+    function initDates() {
+      const end = new Date();
+      const start = new Date();
+      start.setFullYear(end.getFullYear() - 1);
+      $("endDate").value = toDateInput(end);
+      $("startDate").value = toDateInput(start);
+    }
+
+    function setQuickDate(range) {
+      const end = new Date();
+      const start = new Date();
+      if (range === "1y") start.setFullYear(end.getFullYear() - 1);
+      if (range === "6m") start.setMonth(end.getMonth() - 6);
+      if (range === "3m") start.setMonth(end.getMonth() - 3);
+      if (range === "ytd") {
+        start.setMonth(0);
+        start.setDate(1);
+      }
+      $("endDate").value = toDateInput(end);
+      $("startDate").value = toDateInput(start);
+    }
+
+    function loadStocks() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        return Array.isArray(saved) ? saved : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveStocks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stocks));
+      renderStocks();
+    }
+
+    function loadSettings() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+        Object.keys(saved).forEach(key => {
+          if ($(key)) $(key).value = saved[key];
+        });
+      } catch {}
+    }
+
+    function saveSettings() {
+      const ids = [
+        "baseExposure", "addStep", "maxExposure", "defensiveExposure",
+        "observeDays", "hardExitDays", "maxPriceDrawdown", "maxEquityDrawdown"
+      ];
+      const payload = {};
+      ids.forEach(id => payload[id] = $(id).value);
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+    }
+
+    function renderStocks() {
+      $("stockCount").textContent = String(stocks.length);
+      const list = $("stockList");
+      if (!stocks.length) {
+        list.innerHTML = '<div class="empty">先搜索或加入示例股票</div>';
+        return;
+      }
+      list.innerHTML = stocks.map((stock, index) => `
+        <div class="stock-row">
+          <input type="checkbox" ${stock.selected !== false ? "checked" : ""} onchange="toggleStock(${index}, this.checked)">
+          <div>
+            <div class="stock-name">${escapeHtml(stock.name || stock.code)}</div>
+            <div class="stock-meta">${escapeHtml(stock.code)}</div>
+          </div>
+          <div class="mini-actions">
+            <button class="mini-btn" onclick="editStock(${index})">编辑</button>
+            <button class="mini-btn" onclick="deleteStock(${index})">删除</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function addSamples() {
+      sampleStocks.forEach(item => {
+        if (!stocks.some(x => normalizeCode(x.code) === normalizeCode(item.code))) {
+          stocks.push({ ...item });
+        }
+      });
+      saveStocks();
+    }
+
+    function clearStocks() {
+      if (!confirm("确认清空股票池吗？")) return;
+      stocks = [];
+      saveStocks();
+    }
+
+    function saveStock() {
+      const name = $("stockName").value.trim();
+      const code = normalizeCode($("stockCode").value.trim());
+      if (!name || !code) {
+        alert("请填写名称和代码");
+        return;
+      }
+      const existing = stocks.findIndex(x => normalizeCode(x.code) === code);
+      const item = { name, code, selected: true };
+      if (existing >= 0) stocks[existing] = item;
+      else stocks.push(item);
+      $("stockName").value = "";
+      $("stockCode").value = "";
+      saveStocks();
+    }
+
+    function editStock(index) {
+      const stock = stocks[index];
+      $("stockName").value = stock.name;
+      $("stockCode").value = stock.code;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function deleteStock(index) {
+      stocks.splice(index, 1);
+      saveStocks();
+    }
+
+    function toggleStock(index, checked) {
+      stocks[index].selected = checked;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stocks));
+    }
+
+    async function searchStock() {
+      const query = $("stockSearch").value.trim();
+      if (!query) return;
+      setStatus("搜索中...");
+      const box = $("searchResults");
+      box.style.display = "block";
+      box.innerHTML = '<div class="empty">搜索中</div>';
+      try {
+        const url = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(query)}&type=14&token=D43BF722C8E33BD5D50F639205545E43`;
+        const json = await jsonp(url);
+        const rows = json && json.QuotationCodeTable && json.QuotationCodeTable.Data ? json.QuotationCodeTable.Data : [];
+        if (!rows.length) {
+          box.innerHTML = '<div class="empty">没有找到，试试直接输入代码</div>';
+          setStatus("未找到");
+          return;
+        }
+        box.innerHTML = rows.slice(0, 12).map(row => {
+          const code = normalizeEastmoneyResult(row);
+          return `
+            <div class="search-item" onclick="pickSearchResult('${escapeAttr(row.Name)}', '${escapeAttr(code)}')">
+              <strong>${escapeHtml(row.Name)}</strong>
+              <span>${escapeHtml(code)}</span>
+            </div>
+          `;
+        }).join("");
+        setStatus("搜索完成");
+      } catch (error) {
+        box.innerHTML = '<div class="empty">搜索失败，可以手动添加代码</div>';
+        setStatus("搜索失败");
+      }
+    }
+
+    function pickSearchResult(name, code) {
+      $("stockName").value = name;
+      $("stockCode").value = code;
+      $("searchResults").style.display = "none";
+    }
+
+    async function runSelectedBacktests() {
+      saveSettings();
+      const selected = stocks.filter(x => x.selected !== false);
+      if (!selected.length) {
+        alert("请先勾选至少一只股票");
+        return;
+      }
+      const start = $("startDate").value;
+      const end = $("endDate").value || toDateInput(new Date());
+      if (!start) {
+        alert("请选择开始日期");
+        return;
+      }
+
+      const runBtn = $("runBtn");
+      const progress = $("progressBox");
+      results = [];
+      selectedResultIndex = -1;
+      runBtn.disabled = true;
+      progress.style.display = "block";
+      $("summaryBody").innerHTML = "";
+      setStatus("回测中...");
+
+      for (let i = 0; i < selected.length; i++) {
+        const stock = selected[i];
+        progress.textContent = `正在获取行情并回测：${stock.name} (${i + 1}/${selected.length})`;
+        try {
+          const prices = await fetchPrices(stock.code, start, end);
+          const result = backtest(stock, prices, getConfig());
+          results.push(result);
+          appendSummary(result, results.length - 1);
+          if (selectedResultIndex < 0) selectResult(0);
+        } catch (error) {
+          appendError(stock, error.message || "数据失败");
+        }
+      }
+
+      results.sort((a, b) => b.stats.totalReturn - a.stats.totalReturn);
+      renderSummary();
+      if (results.length) selectResult(0);
+      progress.style.display = "none";
+      runBtn.disabled = false;
+      setStatus(`完成 ${results.length}/${selected.length} 只`);
+    }
+
+    function getConfig() {
+      return {
+        baseExposure: clampNumber($("baseExposure").value, 0, 2, 0.2),
+        addStep: clampNumber($("addStep").value, 0, 2, 0.2),
+        maxExposure: clampNumber($("maxExposure").value, 0, 2, 1),
+        defensiveExposure: clampNumber($("defensiveExposure").value, 0, 1, 0.2),
+        observeDays: Math.max(1, parseInt($("observeDays").value || "3", 10)),
+        hardExitDays: Math.max(1, parseInt($("hardExitDays").value || "6", 10)),
+        maxPriceDrawdown: clampNumber($("maxPriceDrawdown").value, 0, 1, 0.12),
+        warningPriceDrawdown: 0.08,
+        maxEquityDrawdown: clampNumber($("maxEquityDrawdown").value, 0, 1, 0.10),
+        hardEquityDrawdown: 0.15
+      };
+    }
+
+    async function fetchPrices(code, start, end) {
+      const secIdCandidates = getSecIdCandidates(code);
+      let lastError = "";
+      for (const secId of secIdCandidates) {
+        try {
+          const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&fields1=f1&fields2=f51,f52,f53,f54,f55,f56&klt=101&fqt=1&beg=19900101&end=20500101&lmt=1000`;
+          const json = await jsonp(url);
+          const rows = json && json.data && json.data.klines ? json.data.klines : [];
+          if (!rows.length) {
+            lastError = "无K线数据";
+            continue;
+          }
+          const prices = rows.map(line => {
+            const p = line.split(",");
+            return {
+              date: p[0],
+              open: Number(p[1]),
+              close: Number(p[2]),
+              high: Number(p[3]),
+              low: Number(p[4]),
+              volume: Number(p[5] || 0)
+            };
+          }).filter(x => x.date >= start && x.date <= end && Number.isFinite(x.close));
+
+          await appendRealtimeIfNeeded(prices, secId, code, end);
+          if (prices.length >= 25) return prices.sort((a, b) => a.date.localeCompare(b.date));
+          lastError = "区间数据不足";
+        } catch (error) {
+          lastError = error.message || "行情接口失败";
+        }
+      }
+      throw new Error(lastError || "无法获取行情");
+    }
+
+    async function appendRealtimeIfNeeded(prices, secId, code, end) {
+      const today = toDateInput(new Date());
+      if (end < today || !prices.length) return;
+      try {
+        const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secId}&fields=f43,f44,f45,f46,f47,f57,f58,f60`;
+        const json = await jsonp(url);
+        const data = json && json.data ? json.data : null;
+        if (!data || !data.f43 || data.f43 <= 0) return;
+        const close = data.f43 / 100;
+        const open = data.f46 > 0 ? data.f46 / 100 : close;
+        const high = data.f44 > 0 ? data.f44 / 100 : Math.max(open, close);
+        const low = data.f45 > 0 ? data.f45 / 100 : Math.min(open, close);
+        const last = prices[prices.length - 1];
+        const bar = { date: today, open, close, high, low, volume: Number(data.f47 || 0) };
+        if (last.date === today) prices[prices.length - 1] = bar;
+        else if (last.date < today) prices.push(bar);
+      } catch {}
+    }
+
+    function backtest(stock, prices, cfg) {
+      const data = addIndicators(prices);
+      let nav = 1;
+      let peakNav = 1;
+      let exposure = 0;
+      let targetNext = 0;
+      let highestClose = null;
+      const history = [];
+      const logs = [];
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const prev = data[i - 1];
+        if (i > 0) {
+          const dailyReturn = row.close / prev.close - 1;
+          nav *= 1 + exposure * dailyReturn;
+          peakNav = Math.max(peakNav, nav);
+        }
+
+        exposure = targetNext;
+        if (exposure > 0) highestClose = highestClose === null ? row.close : Math.max(highestClose, row.close);
+        else highestClose = null;
+
+        const equityDrawdown = nav / peakNav - 1;
+        const decision = decide(row, exposure, highestClose, equityDrawdown, cfg);
+        const oldExposure = exposure;
+        targetNext = decision.target;
+        const action = actionFromChange(oldExposure, targetNext, decision.action);
+
+        history.push({
+          date: row.date,
+          close: row.close,
+          nav,
+          exposure: oldExposure,
+          target: targetNext,
+          action,
+          reason: decision.reason,
+          ma5: row.ma5,
+          ma10: row.ma10,
+          ma20: row.ma20,
+          drawdown: equityDrawdown
+        });
+
+        logs.push({
+          date: row.date,
+          action,
+          from: oldExposure,
+          to: targetNext,
+          close: row.close,
+          ma5: row.ma5,
+          ma10: row.ma10,
+          ma20: row.ma20,
+          reason: decision.reason
+        });
+      }
+
+      const first = history[0];
+      const last = history[history.length - 1];
+      const maxDD = Math.min(...history.map(x => x.nav / Math.max(...history.filter(y => y.date <= x.date).map(y => y.nav)) - 1));
+      const avgExposure = history.reduce((sum, x) => sum + x.exposure, 0) / history.length;
+      const tradeLogs = logs.filter(x => Math.abs(x.to - x.from) > 0.005);
+      return {
+        stock,
+        history,
+        logs,
+        stats: {
+          totalReturn: last.nav / first.nav - 1,
+          stockReturn: last.close / first.close - 1,
+          maxDrawdown: maxDD,
+          avgExposure,
+          currentExposure: last.target,
+          latestAction: last.action,
+          latestReason: last.reason,
+          trades: tradeLogs.length
+        }
+      };
+    }
+
+    function addIndicators(prices) {
+      return prices.map((row, i) => {
+        const ma5 = movingAverage(prices, i, 5);
+        const ma10 = movingAverage(prices, i, 10);
+        const ma20 = movingAverage(prices, i, 20);
+        return {
+          ...row,
+          ma5,
+          ma10,
+          ma20,
+          ma5Slope: i > 0 && ma5 !== null && movingAverage(prices, i - 1, 5) !== null ? ma5 - movingAverage(prices, i - 1, 5) : null,
+          daysBelowMA10: consecutiveBelow(prices, i, 10)
+        };
+      });
+    }
+
+    function decide(row, exposure, highestClose, equityDrawdown, cfg) {
+      if (row.ma5 === null || row.ma10 === null || row.ma20 === null) {
+        return { target: 0, action: "HOLD", reason: "等待均线形成" };
+      }
+
+      const priceDrawdown = highestClose ? row.close / highestClose - 1 : 0;
+      const healthy = row.close >= row.ma5 && row.ma5 >= row.ma10 && row.ma5Slope > 0;
+      const constructive = row.close >= row.ma10 && row.ma5 >= row.ma10 * 0.995;
+      const warning = row.daysBelowMA10 > cfg.observeDays || priceDrawdown <= -cfg.warningPriceDrawdown;
+
+      if (equityDrawdown <= -cfg.hardEquityDrawdown) {
+        return { target: 0, action: "SELL", reason: "组合回撤触发清仓" };
+      }
+
+      if (
+        row.daysBelowMA10 >= cfg.hardExitDays ||
+        row.close < row.ma20 ||
+        priceDrawdown <= -cfg.maxPriceDrawdown
+      ) {
+        return { target: 0, action: "SELL", reason: "趋势破坏或高点回撤过大" };
+      }
+
+      if (equityDrawdown <= -cfg.maxEquityDrawdown) {
+        return { target: Math.min(exposure, cfg.defensiveExposure), action: "TRIM", reason: "净值回撤降到防守仓位" };
+      }
+
+      if (exposure <= 0.005) {
+        if (healthy || constructive) {
+          return { target: cfg.baseExposure, action: "BUY", reason: "重新站上短期趋势，建立底仓" };
+        }
+        return { target: 0, action: "HOLD", reason: "等待趋势确认" };
+      }
+
+      if (warning) {
+        return {
+          target: Math.max(cfg.defensiveExposure, exposure - cfg.addStep),
+          action: "TRIM",
+          reason: "跌破10日线后修复不够，先降仓"
+        };
+      }
+
+      if (healthy) {
+        const target = Math.min(cfg.maxExposure, exposure + cfg.addStep);
+        return { target, action: target > exposure + 0.005 ? "ADD" : "HOLD", reason: "沿5日线上行，分批加仓或持有" };
+      }
+
+      if (constructive) {
+        return { target: exposure, action: "HOLD", reason: "仍在10日线附近，继续观察" };
+      }
+
+      return {
+        target: Math.max(cfg.defensiveExposure, exposure - cfg.addStep),
+        action: "TRIM",
+        reason: "短期结构转弱，降低仓位"
+      };
+    }
+
+    function renderSummary() {
+      const body = $("summaryBody");
+      if (!results.length) {
+        body.innerHTML = '<tr><td colspan="7" class="empty">还没有回测结果</td></tr>';
+        return;
+      }
+      body.innerHTML = results.map((result, index) => summaryRow(result, index)).join("");
+    }
+
+    function appendSummary(result, index) {
+      const body = $("summaryBody");
+      if (body.querySelector(".empty")) body.innerHTML = "";
+      body.insertAdjacentHTML("beforeend", summaryRow(result, index));
+    }
+
+    function appendError(stock, message) {
+      const body = $("summaryBody");
+      if (body.querySelector(".empty")) body.innerHTML = "";
+      body.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td><strong>${escapeHtml(stock.name)}</strong><div class="stock-meta">${escapeHtml(stock.code)}</div></td>
+          <td colspan="6" class="warning">${escapeHtml(message)}</td>
+        </tr>
+      `);
+    }
+
+    function summaryRow(result, index) {
+      return `
+        <tr onclick="selectResult(${index})" id="summaryRow${index}">
+          <td><strong>${escapeHtml(result.stock.name)}</strong><div class="stock-meta">${escapeHtml(result.stock.code)}</div></td>
+          <td class="${result.stats.totalReturn >= 0 ? "positive" : "negative"}">${formatPct(result.stats.totalReturn)}</td>
+          <td class="${result.stats.stockReturn >= 0 ? "positive" : "negative"}">${formatPct(result.stats.stockReturn)}</td>
+          <td class="negative">${formatPct(result.stats.maxDrawdown)}</td>
+          <td>${formatPct(result.stats.currentExposure)}</td>
+          <td>${badge(result.stats.latestAction)}</td>
+          <td style="text-align:left;">${escapeHtml(result.stats.latestReason)}</td>
+        </tr>
+      `;
+    }
+
+    function selectResult(index) {
+      if (!results[index]) return;
+      selectedResultIndex = index;
+      document.querySelectorAll("#summaryBody tr").forEach(row => row.classList.remove("selected"));
+      const row = $("summaryRow" + index);
+      if (row) row.classList.add("selected");
+
+      const result = results[index];
+      $("selectedName").textContent = `${result.stock.name} ${result.stock.code}`;
+      setStat("statReturn", result.stats.totalReturn);
+      setStat("statStockReturn", result.stats.stockReturn);
+      setStat("statDrawdown", result.stats.maxDrawdown);
+      $("statExposure").textContent = formatPct(result.stats.avgExposure);
+      renderChart(result);
+      renderLogs();
+    }
+
+    function setStat(id, value) {
+      const el = $(id);
+      el.textContent = formatPct(value);
+      el.className = "stat-value " + (value >= 0 ? "positive" : "negative");
+    }
+
+    function renderChart(result) {
+      const dom = $("mainChart");
+      if (!chart) chart = echarts.init(dom);
+      const h = result.history;
+      chart.setOption({
+        animation: false,
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross" },
+          formatter(params) {
+            const idx = params[0].dataIndex;
+            const item = h[idx];
+            return [
+              `<strong>${item.date}</strong>`,
+              `收盘价：${item.close.toFixed(2)}`,
+              `净值：${item.nav.toFixed(3)}`,
+              `仓位：${formatPct(item.exposure)}`,
+              `动作：${actionText(item.action)}`,
+              `原因：${escapeHtml(item.reason)}`
+            ].join("<br>");
+          }
+        },
+        legend: { top: 0, data: ["收盘价", "MA5", "MA10", "MA20", "策略净值", "仓位"] },
+        grid: [
+          { left: 48, right: 48, top: 42, height: "48%" },
+          { left: 48, right: 48, top: "66%", height: "18%" }
+        ],
+        xAxis: [
+          { type: "category", data: h.map(x => x.date), boundaryGap: false, axisLabel: { show: false } },
+          { type: "category", data: h.map(x => x.date), boundaryGap: false, gridIndex: 1 }
+        ],
+        yAxis: [
+          { type: "value", scale: true },
+          { type: "value", scale: true },
+          { type: "value", gridIndex: 1, min: 0, max: Math.max(1, getConfig().maxExposure) }
+        ],
+        dataZoom: [
+          { type: "inside", xAxisIndex: [0, 1] },
+          { type: "slider", xAxisIndex: [0, 1], height: 22, bottom: 4 }
+        ],
+        series: [
+          { name: "收盘价", type: "line", data: h.map(x => x.close), showSymbol: false, yAxisIndex: 0, lineStyle: { color: "#374151", width: 1.2 } },
+          { name: "MA5", type: "line", data: h.map(x => x.ma5), showSymbol: false, yAxisIndex: 0, lineStyle: { color: "#dc2626", width: 1 } },
+          { name: "MA10", type: "line", data: h.map(x => x.ma10), showSymbol: false, yAxisIndex: 0, lineStyle: { color: "#2563eb", width: 1 } },
+          { name: "MA20", type: "line", data: h.map(x => x.ma20), showSymbol: false, yAxisIndex: 0, lineStyle: { color: "#15803d", width: 1 } },
+          { name: "策略净值", type: "line", data: h.map(x => x.nav), showSymbol: false, yAxisIndex: 1, lineStyle: { color: "#7c3aed", width: 1.8 } },
+          { name: "仓位", type: "line", data: h.map(x => x.exposure), showSymbol: false, xAxisIndex: 1, yAxisIndex: 2, step: "end", areaStyle: { opacity: 0.18 }, lineStyle: { color: "#f59e0b", width: 1.5 } }
+        ]
+      }, true);
+      chart.resize();
+    }
+
+    function renderEmptyChart() {
+      const dom = $("mainChart");
+      chart = echarts.init(dom);
+      chart.setOption({
+        grid: { left: 20, right: 20, top: 20, bottom: 20 },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: [],
+        graphic: {
+          type: "text",
+          left: "center",
+          top: "middle",
+          style: { text: "运行回测后显示图表", fill: "#6b7280", fontSize: 14 }
+        }
+      });
+    }
+
+    function renderLogs() {
+      const body = $("logBody");
+      const result = results[selectedResultIndex];
+      if (!result) {
+        body.innerHTML = '<tr><td colspan="6" class="empty">请选择一只股票查看</td></tr>';
+        return;
+      }
+      let logs = result.logs.slice().reverse();
+      if (activeLogFilter === "trade") logs = logs.filter(x => Math.abs(x.to - x.from) > 0.005);
+      if (!logs.length) {
+        body.innerHTML = '<tr><td colspan="6" class="empty">没有交易记录</td></tr>';
+        return;
+      }
+      body.innerHTML = logs.map(log => `
+        <tr>
+          <td>${log.date}</td>
+          <td>${badge(log.action)}</td>
+          <td>${formatPct(log.from)} -> ${formatPct(log.to)}</td>
+          <td>${log.close.toFixed(2)}</td>
+          <td>${fmt(log.ma5)} / ${fmt(log.ma10)} / ${fmt(log.ma20)}</td>
+          <td style="text-align:left;">${escapeHtml(log.reason)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function exportConfig() {
+      const blob = new Blob([JSON.stringify(stocks, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "value-trend-stocks.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function movingAverage(rows, index, period) {
+      if (index < period - 1) return null;
+      let sum = 0;
+      for (let i = index - period + 1; i <= index; i++) sum += rows[i].close;
+      return sum / period;
+    }
+
+    function consecutiveBelow(rows, index, period) {
+      let count = 0;
+      for (let i = index; i >= 0; i--) {
+        const ma = movingAverage(rows, i, period);
+        if (ma === null || rows[i].close >= ma) break;
+        count++;
+      }
+      return count;
+    }
+
+    function actionFromChange(from, to, preferred) {
+      if (to > from + 0.005) return from <= 0.005 ? "BUY" : "ADD";
+      if (to < from - 0.005) return to <= 0.005 ? "SELL" : "TRIM";
+      return preferred === "HOLD" ? "HOLD" : "HOLD";
+    }
+
+    function getSecIdCandidates(code) {
+      const c = normalizeCode(code);
+      const raw = c.replace(/\.(SH|SZ|HK|US)$/i, "");
+      if (c.endsWith(".SH")) return [`1.${raw}`];
+      if (c.endsWith(".SZ")) return [`0.${raw}`];
+      if (c.endsWith(".HK")) return [`116.${raw.padStart(5, "0")}`];
+      if (c.endsWith(".US")) return [`105.${raw}`, `106.${raw}`, `107.${raw}`];
+      if (/^6\d{5}$/.test(raw)) return [`1.${raw}`];
+      if (/^[038]\d{5}$/.test(raw)) return [`0.${raw}`];
+      if (/^\d{5}$/.test(raw)) return [`116.${raw}`];
+      return [`105.${raw}`, `106.${raw}`, `107.${raw}`];
+    }
+
+    function normalizeCode(code) {
+      let c = String(code || "").trim().toUpperCase();
+      c = c.replace(/^SH\.?/, "").replace(/^SZ\.?/, "").replace(/^HK\.?/, "").replace(/^US\.?/, "");
+      if (c.includes(".")) {
+        const parts = c.split(".");
+        if (parts[1] === "SS") return `${parts[0]}.SH`;
+        return `${parts[0]}.${parts[1]}`;
+      }
+      if (/^6\d{5}$/.test(c) || /^9\d{5}$/.test(c)) return `${c}.SH`;
+      if (/^[038]\d{5}$/.test(c)) return `${c}.SZ`;
+      if (/^\d{5}$/.test(c)) return `${c.padStart(5, "0")}.HK`;
+      return `${c}.US`;
+    }
+
+    function normalizeEastmoneyResult(row) {
+      const raw = String(row.Code || "").toUpperCase();
+      const marketType = String(row.MarketType || "");
+      if (/^\d{5}$/.test(raw)) return `${raw.padStart(5, "0")}.HK`;
+      if (!/^\d+$/.test(raw)) return `${raw}.US`;
+      if (marketType === "1" || raw.startsWith("6") || raw.startsWith("9")) return `${raw}.SH`;
+      if (marketType === "2" || raw.startsWith("0") || raw.startsWith("3") || raw.startsWith("8")) return `${raw}.SZ`;
+      if (marketType === "5") return `${raw.padStart(5, "0")}.HK`;
+      return normalizeCode(raw);
+    }
+
+    function jsonp(url, callbackParam = "cb") {
+      return new Promise((resolve, reject) => {
+        const name = "jsonp_" + Math.random().toString(36).slice(2);
+        const script = document.createElement("script");
+        const sep = url.includes("?") ? "&" : "?";
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error("请求超时"));
+        }, 12000);
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[name];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+        window[name] = data => {
+          cleanup();
+          resolve(data);
+        };
+        script.onerror = () => {
+          cleanup();
+          reject(new Error("网络失败"));
+        };
+        script.src = `${url}${sep}${callbackParam}=${name}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    function clampNumber(value, min, max, fallback) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function formatPct(value) {
+      if (!Number.isFinite(value)) return "--";
+      const sign = value > 0 ? "+" : "";
+      return sign + (value * 100).toFixed(2) + "%";
+    }
+
+    function fmt(value) {
+      return Number.isFinite(value) ? value.toFixed(2) : "--";
+    }
+
+    function badge(action) {
+      return `<span class="badge ${action.toLowerCase()}">${actionText(action)}</span>`;
+    }
+
+    function actionText(action) {
+      const map = {
+        BUY: "建仓",
+        ADD: "加仓",
+        HOLD: "持有",
+        TRIM: "减仓",
+        SELL: "清仓"
+      };
+      return map[action] || action;
+    }
+
+    function setStatus(text) {
+      $("statusText").textContent = text;
+    }
+
+    function toDateInput(date) {
+      const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replaceAll("`", "&#096;");
+    }
+
+    window.pickSearchResult = pickSearchResult;
+    window.toggleStock = toggleStock;
+    window.editStock = editStock;
+    window.deleteStock = deleteStock;
+    window.selectResult = selectResult;
+  </script>
+</body>
+</html>
